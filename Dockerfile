@@ -22,6 +22,8 @@ FROM node:22-alpine AS api
 ENV NODE_ENV=production
 ENV PORT=3000
 
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
+
 WORKDIR /app
 
 COPY --chown=node:node package.json ./

@@ -134,7 +134,9 @@ workflow ne déploie pas sur un VPS.
 
 Le même `Dockerfile` à la racine contient les étapes `api-build`,
 `api-production-dependencies`, `api` et `frontend`. Compose et la CI précisent
-`target: api` ou `target: frontend` pour construire l’image voulue.
+`target: api` ou `target: frontend` pour construire l’image voulue. L’image
+runtime API retire également npm/npx, inutiles en production, tout en conservant
+Node.js pour exécuter le serveur.
 
 Pour télécharger ces images depuis une machine autorisée, utiliser un token
 GitHub avec `read:packages` :
