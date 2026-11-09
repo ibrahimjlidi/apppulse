@@ -17,8 +17,8 @@ Le déploiement sur un VPS s’effectue par GitHub Actions via SSH.
   vers l’API, et `/phpmyadmin/` vers phpMyAdmin.
 - **Pipeline** : l’interface affiche la dernière exécution GitHub Actions `CI`
   et le détail des étapes du job.
-- **CI** : validations et publication sur `main` ; le push sur `preprod` exécute
-  un job de confirmation simple.
+- **CI** : validations et publication sur `main` ; le push sur `preprod` lance
+  build, tests d’intégration et scan sur un runner self-hosted WSL.
 - **Sécurité des images** : Trivy scanne les images API et frontend pendant la
   CI ; les vulnérabilités HIGH/CRITICAL corrigibles bloquent la publication.
 - **Images** : après une CI réussie sur `main`, les images API et frontend sont
@@ -131,6 +131,33 @@ requests valident le projet sans publier d’image. GitHub Actions utilise son
 `GITHUB_TOKEN` avec le droit `packages: write` ; aucun secret de registre
 supplémentaire n’est requis. Les images restent privées par défaut et ce
 workflow ne déploie pas sur un VPS.
+
+### Runner self-hosted WSL pour `preprod`
+
+Le job `preprod-validation` nécessite un runner Linux x64 portant le label
+`apppulse-wsl`. Dans GitHub, ouvrir **Settings → Actions → Runners → New
+self-hosted runner**, sélectionner Linux x64, puis exécuter les instructions
+affichées dans WSL depuis un nouveau dossier réservé au runner. Pour le label,
+utiliser un jeton d’inscription fraîchement généré :
+
+```bash
+read -rsp "GitHub runner registration token: " RUNNER_TOKEN
+echo
+./config.sh --url https://github.com/ibrahimjlidi/apppulse \
+  --token "$RUNNER_TOKEN" --labels apppulse-wsl
+unset RUNNER_TOKEN
+./run.sh
+```
+
+Laisser `./run.sh` actif dans WSL pour que le runner accepte les jobs. Avant
+l’inscription, vérifier que l’utilisateur WSL peut utiliser `docker` et
+`docker compose`. Chaque exécution Compose utilise un nom de projet et des ports
+distincts ; le nettoyage supprime uniquement les conteneurs et volumes de cette
+stack CI, sans toucher à la stack AppPulse locale. Le runner a accès au démon
+Docker de WSL : ne l’utiliser que pour ce dépôt de confiance, protéger les droits
+d’écriture sur `preprod` et ne pas exécuter de code provenant de pull requests
+non fiables. Le runner WSL n’est disponible que lorsque WSL et `./run.sh`
+fonctionnent. Ce job ne publie pas d’images et ne déploie pas sur le VPS.
 
 Le même `Dockerfile` à la racine contient les étapes `api-build`,
 `api-production-dependencies`, `api` et `frontend`. Compose et la CI précisent

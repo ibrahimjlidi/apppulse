@@ -14,13 +14,91 @@ permissions:
   contents: read
 
 jobs:
-  preprod-echo:
-    name: Preprod stage
+  preprod-validation:
+    name: Build, test, and scan on WSL runner
     if: github.event_name == 'push' && github.ref == 'refs/heads/preprod'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64, apppulse-wsl]
+    env:
+      MYSQL_DATABASE: apppulse_ci
+      MYSQL_USER: apppulse_ci
+      MYSQL_PASSWORD: apppulse_ci_password
+      MYSQL_ROOT_PASSWORD: apppulse_ci_root_password
+      MYSQL_HOST_PORT: 13307
+      HTTP_PORT: 18081
+      PMA_ABSOLUTE_URI: http://localhost:18081/phpmyadmin/
+      API_BASE_URL: http://localhost:18081
+      API_IMAGE: ghcr.io/${{ github.repository_owner }}/apppulse-api:preprod-${{ github.run_id }}
+      FRONTEND_IMAGE: ghcr.io/${{ github.repository_owner }}/apppulse-frontend:preprod-${{ github.run_id }}
+      COMPOSE_PROJECT_NAME: apppulse-preprod-ci-${{ github.run_id }}
+
     steps:
-      - name: Confirm preprod stage
-        run: echo "stage executer avec success"
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check and build API
+        run: |
+          npm run typecheck
+          npm run build
+
+      - name: Build API and frontend images
+        run: docker compose -p "$COMPOSE_PROJECT_NAME" build api frontend
+
+      - name: Scan API image for high and critical vulnerabilities
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: image
+          image-ref: ${{ env.API_IMAGE }}
+          scanners: vuln
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+          timeout: 10m
+
+      - name: Scan frontend image for high and critical vulnerabilities
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: image
+          image-ref: ${{ env.FRONTEND_IMAGE }}
+          scanners: vuln
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+          timeout: 10m
+
+      - name: Start stack from the scanned images
+        run: docker compose -p "$COMPOSE_PROJECT_NAME" up -d --no-build
+
+      - name: Wait for API and database
+        run: |
+          for attempt in {1..60}; do
+            if curl --fail --silent "$API_BASE_URL/health"; then
+              echo
+              exit 0
+            fi
+            sleep 2
+          done
+
+          docker compose -p "$COMPOSE_PROJECT_NAME" ps
+          docker compose -p "$COMPOSE_PROJECT_NAME" logs --tail=100 api mysql nginx
+          exit 1
+
+      - name: Run API integration test
+        run: npm run test:integration
+
+      - name: Clean up isolated preprod stack
+        if: always()
+        run: docker compose -p "$COMPOSE_PROJECT_NAME" down --volumes --remove-orphans
 
   validate-and-publish:
     name: Build, test, scan, and publish
