@@ -17,7 +17,8 @@ Le déploiement sur un VPS s’effectue par GitHub Actions via SSH.
   vers l’API, et `/phpmyadmin/` vers phpMyAdmin.
 - **Pipeline** : l’interface affiche la dernière exécution GitHub Actions `CI`
   et le détail des étapes du job.
-- **CI** : vérifications automatiques sur les push et pull requests vers `main`.
+- **CI** : validations et publication sur `main` ; le push sur `preprod` exécute
+  un job de confirmation simple.
 - **Sécurité des images** : Trivy scanne les images API et frontend pendant la
   CI ; les vulnérabilités HIGH/CRITICAL corrigibles bloquent la publication.
 - **Images** : après une CI réussie sur `main`, les images API et frontend sont

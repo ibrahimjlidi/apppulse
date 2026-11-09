@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - preprod
   pull_request:
     branches:
       - main
@@ -13,8 +14,17 @@ permissions:
   contents: read
 
 jobs:
+  preprod-echo:
+    name: Preprod stage
+    if: github.event_name == 'push' && github.ref == 'refs/heads/preprod'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Confirm preprod stage
+        run: echo "stage executer avec success"
+
   validate-and-publish:
     name: Build, test, scan, and publish
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: read
