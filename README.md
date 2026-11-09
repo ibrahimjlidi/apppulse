@@ -17,6 +17,9 @@ Le déploiement sur un VPS s’effectue par GitHub Actions via SSH.
 - **Pipeline** : l’interface affiche la dernière exécution GitHub Actions `CI`
   et le détail des étapes du job.
 - **CI** : vérifications automatiques sur les push et pull requests vers `main`.
+- **Images** : après une CI réussie sur `main`, les images API et frontend sont
+  publiées en privé sur GitHub Container Registry (GHCR), sous les tags `latest`
+  et SHA complet du commit.
 - **Déploiement VPS** : workflow manuel, à configurer lorsque le VPS sera prêt.
 
 MySQL n’est pas publié sur une interface réseau publique. Son port local est
@@ -111,8 +114,26 @@ npm run test:integration
 
 Le workflow GitHub Actions `CI` exécute le type-check, la compilation et le test
 d’intégration sur les push et pull requests vers `main`. Il démarre une stack
-éphémère sur le runner GitHub, puis la supprime. Ce workflow valide le projet,
-mais ne déploie pas sur un VPS.
+éphémère sur le runner GitHub, puis la supprime. Après un push réussi sur
+`main`, il publie les images privées :
+
+- `ghcr.io/ibrahimjlidi/apppulse-api:latest`
+- `ghcr.io/ibrahimjlidi/apppulse-frontend:latest`
+
+Chaque image est également publiée sous le SHA complet du commit. Les pull
+requests valident le projet sans publier d’image. GitHub Actions utilise son
+`GITHUB_TOKEN` avec le droit `packages: write` ; aucun secret de registre
+supplémentaire n’est requis. Les images restent privées par défaut et ce
+workflow ne déploie pas sur un VPS.
+
+Pour télécharger ces images depuis une machine autorisée, utiliser un token
+GitHub avec `read:packages` :
+
+```bash
+echo "$GHCR_TOKEN" | docker login ghcr.io -u TON_UTILISATEUR --password-stdin
+docker pull ghcr.io/ibrahimjlidi/apppulse-api:latest
+docker pull ghcr.io/ibrahimjlidi/apppulse-frontend:latest
+```
 
 ## API
 
