@@ -53,7 +53,7 @@ jobs:
         run: docker compose build api frontend
 
       - name: Scan API image for high and critical vulnerabilities
-        uses: aquasecurity/trivy-action@0.36.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: image
           image-ref: ${{ env.API_IMAGE }}
@@ -65,7 +65,7 @@ jobs:
           timeout: 10m
 
       - name: Scan frontend image for high and critical vulnerabilities
-        uses: aquasecurity/trivy-action@0.36.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: image
           image-ref: ${{ env.FRONTEND_IMAGE }}
