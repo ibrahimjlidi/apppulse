@@ -18,6 +18,8 @@ function requiredEnv(name: string): string {
 
 const port = Number(process.env.PORT ?? 3000);
 const dbPort = Number(process.env.DB_PORT ?? 3306);
+const githubRepository = process.env.GITHUB_REPOSITORY ?? '';
+const githubToken = process.env.GITHUB_TOKEN;
 
 if (!Number.isInteger(port) || port < 1 || port > 65535) {
   throw new Error('PORT must be a valid TCP port');
@@ -92,6 +94,163 @@ app.get('/health', async (_req, res) => {
   } catch (error) {
     console.error('Health check failed:', error);
     res.status(503).json({ status: 'error', database: 'disconnected' });
+  }
+});
+
+app.get('/api/pipeline', async (_req, res) => {
+  const [owner, repository] = githubRepository.split('/');
+
+  if (
+    !owner ||
+    !repository ||
+    !/^[A-Za-z0-9_.-]+$/.test(owner) ||
+    !/^[A-Za-z0-9_.-]+$/.test(repository)
+  ) {
+    res.status(503).json({ error: 'GitHub Actions repository is not configured' });
+    return;
+  }
+
+  const headers: Record<string, string> = {
+    Accept: 'application/vnd.github+json',
+    'X-GitHub-Api-Version': '2022-11-28',
+    'User-Agent': 'AppPulse'
+  };
+
+  if (githubToken) {
+    headers.Authorization = `Bearer ${githubToken}`;
+  }
+
+  const githubFetch = async (path: string): Promise<unknown> => {
+    const response = await fetch(`https://api.github.com${path}`, {
+      headers,
+      signal: AbortSignal.timeout(10000)
+    });
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error(
+          'GitHub repository or workflow was not found, or the token cannot access it.'
+        );
+      }
+
+      if (response.status === 403 || response.status === 429) {
+        throw new Error(
+          'GitHub API access was denied or rate-limited. Check repository visibility and token permissions.'
+        );
+      }
+
+      throw new Error(`GitHub API request failed with status ${response.status}.`);
+    }
+
+    return response.json();
+  };
+
+  try {
+    const runsPayload = await githubFetch(
+      `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repository)}/actions/runs?branch=main&per_page=20`
+    );
+
+    if (
+      !isRecord(runsPayload) ||
+      !Array.isArray(runsPayload.workflow_runs)
+    ) {
+      throw new Error('GitHub returned an unexpected workflow response.');
+    }
+
+    const run = runsPayload.workflow_runs.find(
+      (candidate) => isRecord(candidate) && candidate.name === 'AppPulse CI'
+    );
+
+    if (!isRecord(run)) {
+      res.json({
+        repository: githubRepository,
+        workflowName: 'AppPulse CI',
+        run: null
+      });
+      return;
+    }
+
+    if (
+      typeof run.id !== 'number' ||
+      typeof run.status !== 'string' ||
+      typeof run.html_url !== 'string'
+    ) {
+      throw new Error('GitHub returned an incomplete workflow run.');
+    }
+
+    const jobsPayload = await githubFetch(
+      `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repository)}/actions/runs/${run.id}/jobs?per_page=100`
+    );
+
+    if (!isRecord(jobsPayload) || !Array.isArray(jobsPayload.jobs)) {
+      throw new Error('GitHub returned an unexpected jobs response.');
+    }
+
+    const jobs = jobsPayload.jobs.flatMap((job) => {
+      if (
+        !isRecord(job) ||
+        typeof job.name !== 'string' ||
+        typeof job.status !== 'string'
+      ) {
+        return [];
+      }
+
+      const steps = Array.isArray(job.steps)
+        ? job.steps.flatMap((step) => {
+            if (
+              !isRecord(step) ||
+              typeof step.name !== 'string' ||
+              typeof step.status !== 'string'
+            ) {
+              return [];
+            }
+
+            return [{
+              name: step.name,
+              status: step.status,
+              conclusion: typeof step.conclusion === 'string'
+                ? step.conclusion
+                : null
+            }];
+          })
+        : [];
+
+      return [{
+        name: job.name,
+        status: job.status,
+        conclusion: typeof job.conclusion === 'string'
+          ? job.conclusion
+          : null,
+        steps
+      }];
+    });
+
+    res.json({
+      repository: githubRepository,
+      workflowName: 'AppPulse CI',
+      run: {
+        id: run.id,
+        name: typeof run.display_title === 'string'
+          ? run.display_title
+          : 'AppPulse CI',
+        status: run.status,
+        conclusion: typeof run.conclusion === 'string'
+          ? run.conclusion
+          : null,
+        branch: typeof run.head_branch === 'string' ? run.head_branch : null,
+        event: typeof run.event === 'string' ? run.event : null,
+        htmlUrl: run.html_url,
+        createdAt: typeof run.created_at === 'string' ? run.created_at : null,
+        updatedAt: typeof run.updated_at === 'string' ? run.updated_at : null,
+        jobs
+      }
+    });
+  } catch (error) {
+    const message = error instanceof Error
+      ? error.message
+      : 'Unable to retrieve GitHub Actions status.';
+    console.error('GitHub Actions status request failed:', message);
+    res.status(502).json({ error: message });
   }
 });
 

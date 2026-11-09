@@ -160,6 +160,162 @@ h1 {
   font-size: 25px;
 }
 
+.pipeline-panel {
+  margin-bottom: 22px;
+}
+
+.pipeline-content {
+  margin-top: 18px;
+}
+
+.pipeline-message {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.pipeline-error {
+  color: #b42318;
+}
+
+.pipeline-run {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid #e9edf4;
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.pipeline-run-info {
+  display: grid;
+  flex: 1;
+  gap: 4px;
+  min-width: 0;
+}
+
+.pipeline-run-info strong {
+  overflow: hidden;
+  color: #293d5c;
+  font-family: Manrope, sans-serif;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pipeline-run-info span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.pipeline-badge,
+.step-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 5px 9px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.status-success {
+  color: #16794a;
+  background: #e8f7ef;
+}
+
+.status-running {
+  color: #3156c9;
+  background: #edf1ff;
+}
+
+.status-pending,
+.status-neutral {
+  color: #637083;
+  background: #f0f2f5;
+}
+
+.status-failure {
+  color: #b42318;
+  background: #fff0ef;
+}
+
+.status-cancelled {
+  color: #9a5b13;
+  background: #fff5e7;
+}
+
+.pipeline-link {
+  color: var(--blue);
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.pipeline-link:hover {
+  text-decoration: underline;
+}
+
+.pipeline-job {
+  margin-top: 13px;
+  border: 1px solid #e9edf4;
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.pipeline-job-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.pipeline-job-heading h3 {
+  margin: 0;
+  color: #34445d;
+  font-size: 13px;
+}
+
+.pipeline-steps {
+  display: grid;
+  gap: 8px;
+  margin: 13px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pipeline-step {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  min-height: 28px;
+}
+
+.step-marker {
+  width: 21px;
+  height: 21px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.step-name {
+  overflow-wrap: anywhere;
+  color: #53647d;
+  font-size: 12px;
+}
+
+.step-status {
+  padding: 4px 8px;
+  font-size: 10px;
+}
+
 .content-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.65fr) minmax(280px, 0.85fr);
@@ -441,6 +597,19 @@ footer span {
 
   .panel {
     padding: 18px 14px;
+  }
+
+  .pipeline-run {
+    flex-wrap: wrap;
+    gap: 9px;
+  }
+
+  .pipeline-run-info {
+    flex-basis: calc(100% - 8px);
+  }
+
+  .pipeline-link {
+    margin-left: auto;
   }
 
   .task-card {

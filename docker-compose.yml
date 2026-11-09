@@ -12,6 +12,8 @@ services:
       DB_NAME: ${MYSQL_DATABASE:?Set MYSQL_DATABASE in .env}
       DB_USER: ${MYSQL_USER:?Set MYSQL_USER in .env}
       DB_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env}
+      GITHUB_REPOSITORY: ${GITHUB_REPOSITORY:-ibrahimjlidi/apppulse}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
     depends_on:
       mysql:
         condition: service_healthy

@@ -14,6 +14,8 @@ Le déploiement sur un VPS s’effectue par GitHub Actions via SSH.
 - **Administration** : phpMyAdmin, accessible via `/phpmyadmin/`.
 - **Reverse proxy** : Nginx route `/` vers le frontend, `/api/` et `/health`
   vers l’API, et `/phpmyadmin/` vers phpMyAdmin.
+- **Pipeline** : l’interface affiche la dernière exécution GitHub Actions `CI`
+  et le détail des étapes du job.
 - **CI** : vérifications automatiques sur les push et pull requests vers `main`.
 - **Déploiement VPS** : workflow manuel, à configurer lorsque le VPS sera prêt.
 
@@ -54,6 +56,11 @@ lié à `127.0.0.1`. Les services communiquent via des réseaux Docker dédiés.
 
 Dans l’interface, tu peux créer, modifier, terminer et supprimer des tâches.
 Si `HTTP_PORT` est différent dans `.env`, remplace `8080` par ce port.
+Le panneau du pipeline lit le dépôt défini par `GITHUB_REPOSITORY` (par défaut
+`ibrahimjlidi/apppulse`). Pour un dépôt privé, renseigne `GITHUB_TOKEN` dans
+`.env` avec un token en lecture seule sur les Actions. Le token reste côté API
+et n’est jamais envoyé au navigateur. Après une modification de `.env`, recrée
+l’API avec `docker compose up -d --force-recreate api`.
 
 Les données MySQL sont conservées dans le volume `mysql-data`. Pour arrêter les
 conteneurs sans supprimer les données :
@@ -112,6 +119,7 @@ mais ne déploie pas sur un VPS.
 | Méthode | Route | Description |
 | --- | --- | --- |
 | `GET` | `/health` | Vérifie l’API et la connexion MySQL |
+| `GET` | `/api/pipeline` | Dernier workflow CI et statut de ses étapes |
 | `GET` | `/api/tasks` | Liste les tâches |
 | `GET` | `/api/tasks/:id` | Récupère une tâche |
 | `POST` | `/api/tasks` | Crée une tâche |

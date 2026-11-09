@@ -48,6 +48,21 @@
         </article>
       </section>
 
+      <section class="panel pipeline-panel" aria-labelledby="pipeline-heading">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">INTÉGRATION CONTINUE</p>
+            <h2 id="pipeline-heading">Pipeline GitHub Actions</h2>
+          </div>
+          <button id="pipeline-refresh" class="button button-quiet" type="button">
+            Actualiser
+          </button>
+        </div>
+        <div id="pipeline-content" class="pipeline-content" aria-live="polite">
+          <p class="pipeline-message">Chargement du dernier workflow…</p>
+        </div>
+      </section>
+
       <section class="content-grid">
         <section class="panel task-panel" aria-labelledby="tasks-heading">
           <div class="panel-heading">
