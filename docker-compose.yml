@@ -1,9 +1,10 @@
 services:
   api:
-    image: ghcr.io/ibrahimjlidi/apppulse-api:latest
+    image: ${API_IMAGE:-ghcr.io/ibrahimjlidi/apppulse-api:latest}
     build:
       context: .
       dockerfile: Dockerfile
+      target: api
     restart: unless-stopped
     environment:
       NODE_ENV: production
@@ -74,10 +75,11 @@ services:
       - database-network
 
   frontend:
-    image: ghcr.io/ibrahimjlidi/apppulse-frontend:latest
+    image: ${FRONTEND_IMAGE:-ghcr.io/ibrahimjlidi/apppulse-frontend:latest}
     build:
-      context: ./frontend
+      context: .
       dockerfile: Dockerfile
+      target: frontend
     restart: unless-stopped
     networks:
       - app-network

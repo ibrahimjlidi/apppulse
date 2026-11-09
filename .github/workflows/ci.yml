@@ -13,9 +13,12 @@ permissions:
   contents: read
 
 jobs:
-  validate:
-    name: Build and integration test
+  validate-and-publish:
+    name: Build, test, scan, and publish
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     env:
       MYSQL_DATABASE: apppulse_ci
       MYSQL_USER: apppulse_ci
@@ -25,6 +28,8 @@ jobs:
       HTTP_PORT: 8081
       PMA_ABSOLUTE_URI: http://localhost:8081/phpmyadmin/
       API_BASE_URL: http://localhost:8081
+      API_IMAGE: ghcr.io/${{ github.repository_owner }}/apppulse-api:latest
+      FRONTEND_IMAGE: ghcr.io/${{ github.repository_owner }}/apppulse-frontend:latest
 
     steps:
       - name: Check out repository
@@ -44,8 +49,35 @@ jobs:
           npm run typecheck
           npm run build
 
-      - name: Start Docker Compose stack
-        run: docker compose up -d --build
+      - name: Build API and frontend images once
+        run: docker compose build api frontend
+
+      - name: Scan API image for high and critical vulnerabilities
+        uses: aquasecurity/trivy-action@0.36.0
+        with:
+          scan-type: image
+          image-ref: ${{ env.API_IMAGE }}
+          scanners: vuln
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+          timeout: 10m
+
+      - name: Scan frontend image for high and critical vulnerabilities
+        uses: aquasecurity/trivy-action@0.36.0
+        with:
+          scan-type: image
+          image-ref: ${{ env.FRONTEND_IMAGE }}
+          scanners: vuln
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+          timeout: 10m
+
+      - name: Start stack from the scanned images
+        run: docker compose up -d --no-build
 
       - name: Wait for API and database
         run: |
@@ -64,65 +96,29 @@ jobs:
       - name: Run API integration test
         run: npm run test:integration
 
-      - name: Stop Compose stack
-        if: always()
-        run: docker compose down -v
-
-  publish:
-    name: Publish private images to GHCR
-    needs: validate
-    if: github.event_name == 'push'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
       - name: Log in to GitHub Container Registry
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Prepare API image metadata
-        id: api-meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository_owner }}/apppulse-api
-          tags: |
-            type=raw,value=latest
-            type=sha,format=long
+      - name: Tag and publish the scanned images
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GHCR_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
 
-      - name: Build and publish API image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./Dockerfile
-          push: true
-          tags: ${{ steps.api-meta.outputs.tags }}
-          labels: ${{ steps.api-meta.outputs.labels }}
+          docker tag "$API_IMAGE" "ghcr.io/${GITHUB_REPOSITORY_OWNER}/apppulse-api:$GHCR_SHA"
+          docker tag "$FRONTEND_IMAGE" "ghcr.io/${GITHUB_REPOSITORY_OWNER}/apppulse-frontend:$GHCR_SHA"
 
-      - name: Prepare frontend image metadata
-        id: frontend-meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository_owner }}/apppulse-frontend
-          tags: |
-            type=raw,value=latest
-            type=sha,format=long
+          docker push "$API_IMAGE"
+          docker push "ghcr.io/${GITHUB_REPOSITORY_OWNER}/apppulse-api:$GHCR_SHA"
+          docker push "$FRONTEND_IMAGE"
+          docker push "ghcr.io/${GITHUB_REPOSITORY_OWNER}/apppulse-frontend:$GHCR_SHA"
 
-      - name: Build and publish frontend image
-        uses: docker/build-push-action@v6
-        with:
-          context: ./frontend
-          file: ./frontend/Dockerfile
-          push: true
-          tags: ${{ steps.frontend-meta.outputs.tags }}
-          labels: ${{ steps.frontend-meta.outputs.labels }}
+      - name: Stop Compose stack
+        if: always()
+        run: docker compose down -v

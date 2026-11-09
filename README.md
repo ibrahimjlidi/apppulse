@@ -7,9 +7,10 @@ Le déploiement sur un VPS s’effectue par GitHub Actions via SSH.
 
 ## Architecture
 
+- **Images** : un seul `Dockerfile` multi-stage définit les cibles `api` et
+  `frontend`, construites explicitement par Compose et GitHub Actions.
 - **API** : Express 5 et TypeScript, CRUD de tâches et endpoint `/health`.
-- **Interface web** : application responsive intégrée à l’image
-  `apppulse-frontend:1.0`, construite sur Nginx Alpine.
+- **Interface web** : application responsive servie par Nginx Alpine.
 - **Base de données** : MySQL 8 avec volume Docker persistant.
 - **Administration** : phpMyAdmin, accessible via `/phpmyadmin/`.
 - **Reverse proxy** : Nginx route `/` vers le frontend, `/api/` et `/health`
@@ -17,6 +18,8 @@ Le déploiement sur un VPS s’effectue par GitHub Actions via SSH.
 - **Pipeline** : l’interface affiche la dernière exécution GitHub Actions `CI`
   et le détail des étapes du job.
 - **CI** : vérifications automatiques sur les push et pull requests vers `main`.
+- **Sécurité des images** : Trivy scanne les images API et frontend pendant la
+  CI ; les vulnérabilités HIGH/CRITICAL corrigibles bloquent la publication.
 - **Images** : après une CI réussie sur `main`, les images API et frontend sont
   publiées en privé sur GitHub Container Registry (GHCR), sous les tags `latest`
   et SHA complet du commit.
@@ -112,10 +115,12 @@ Avec la stack Docker démarrée :
 npm run test:integration
 ```
 
-Le workflow GitHub Actions `CI` exécute le type-check, la compilation et le test
-d’intégration sur les push et pull requests vers `main`. Il démarre une stack
-éphémère sur le runner GitHub, puis la supprime. Après un push réussi sur
-`main`, il publie les images privées :
+Le workflow GitHub Actions `CI` exécute le type-check et la compilation, puis
+construit une seule fois les images API et frontend. Trivy scanne ces images
+locales (HIGH/CRITICAL corrigibles bloquent la suite), puis la stack éphémère
+est démarrée depuis les mêmes images pour les tests d’intégration. Les images
+scannées et testées sont publiées telles quelles sur `main`, sans reconstruction.
+Les vulnérabilités sans correctif sont ignorées. Les images publiées sont privées :
 
 - `ghcr.io/ibrahimjlidi/apppulse-api:latest`
 - `ghcr.io/ibrahimjlidi/apppulse-frontend:latest`
@@ -125,6 +130,10 @@ requests valident le projet sans publier d’image. GitHub Actions utilise son
 `GITHUB_TOKEN` avec le droit `packages: write` ; aucun secret de registre
 supplémentaire n’est requis. Les images restent privées par défaut et ce
 workflow ne déploie pas sur un VPS.
+
+Le même `Dockerfile` à la racine contient les étapes `api-build`,
+`api-production-dependencies`, `api` et `frontend`. Compose et la CI précisent
+`target: api` ou `target: frontend` pour construire l’image voulue.
 
 Pour télécharger ces images depuis une machine autorisée, utiliser un token
 GitHub avec `read:packages` :
