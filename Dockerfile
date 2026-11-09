@@ -36,6 +36,8 @@ EXPOSE 3000
 
 CMD ["node", "dist/index.js"]
 
-FROM nginx:1.27-alpine AS frontend
+FROM nginx:stable-alpine AS frontend
+
+RUN apk upgrade --no-cache
 
 COPY frontend/index.html frontend/app.js frontend/styles.css /usr/share/nginx/html/

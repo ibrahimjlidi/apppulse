@@ -85,7 +85,7 @@ services:
       - app-network
 
   nginx:
-    image: nginx:1.27-alpine
+    image: nginx:stable-alpine
     restart: unless-stopped
     ports:
       - "${HTTP_PORT:-8081}:80"
