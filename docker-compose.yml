@@ -1,5 +1,6 @@
 services:
   api:
+    image: ghcr.io/ibrahimjlidi/apppulse-api:latest
     build:
       context: .
       dockerfile: Dockerfile
@@ -73,7 +74,7 @@ services:
       - database-network
 
   frontend:
-    image: apppulse-frontend:1.0
+    image: ghcr.io/ibrahimjlidi/apppulse-frontend:latest
     build:
       context: ./frontend
       dockerfile: Dockerfile

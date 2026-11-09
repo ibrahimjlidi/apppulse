@@ -130,9 +130,24 @@ Pour télécharger ces images depuis une machine autorisée, utiliser un token
 GitHub avec `read:packages` :
 
 ```bash
-echo "$GHCR_TOKEN" | docker login ghcr.io -u TON_UTILISATEUR --password-stdin
-docker pull ghcr.io/ibrahimjlidi/apppulse-api:latest
-docker pull ghcr.io/ibrahimjlidi/apppulse-frontend:latest
+read -rsp "GitHub token (read:packages): " GHCR_TOKEN
+echo
+printf '%s' "$GHCR_TOKEN" | docker login ghcr.io \
+  -u ibrahimjlidi --password-stdin
+unset GHCR_TOKEN
+
+docker compose pull api frontend
+docker compose up -d --no-build
+docker compose ps
+curl http://localhost:8081/health
+```
+
+Cette procédure remplace en local les images construites par Docker par celles
+publiées sur GHCR ; elle ne contacte aucun VPS. Pour revenir à une compilation
+depuis les sources locales :
+
+```bash
+docker compose up -d --build
 ```
 
 ## API
